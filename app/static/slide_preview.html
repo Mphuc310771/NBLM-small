@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinematic Slide Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Urbanist:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --obsidian: #0F0F13;
+            --obsidian-2: #15161c;
+            --lime: #deff9a;
+            --blue: #54a8ff;
+            --white: #FFFFFF;
+            --silver: #A0A0A5;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-strong: rgba(255, 255, 255, 0.09);
+            --line: rgba(255, 255, 255, 0.13);
+            --shadow: 0 32px 100px rgba(0, 0, 0, 0.55);
+            --deck-scale: 1;
+            --accent: #deff9a;
+            --accent2: #54a8ff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 18% 12%, rgba(222, 255, 154, 0.12), transparent 28%),
+                radial-gradient(circle at 82% 72%, rgba(84, 168, 255, 0.14), transparent 32%),
+                var(--obsidian);
+            color: var(--white);
+            font-family: "Poppins", system-ui, sans-serif;
+            letter-spacing: 0;
+        }
+
+        body {
+            display: grid;
+            place-items: center;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+            background-size: 42px 42px;
+            mask-image: radial-gradient(circle at center, black, transparent 76%);
+        }
+
+        .topbar {
+            position: fixed;
+            top: 18px;
+            left: 24px;
+            right: 24px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            pointer-events: none;
+        }
+
+        .brand,
+        .nav,
+        .export-btn {
+            pointer-events: auto;
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid var(--line);
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            height: 46px;
+            padding: 0 16px;
+            border-radius: 8px;
+            color: var(--white);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.86rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .brand-mark {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--lime);
+            box-shadow: 0 0 22px rgba(222, 255, 154, 0.9);
+        }
+
+        .export-btn,
+        .nav button {
+            height: 46px;
+            border: 1px solid var(--line);
+            color: var(--white);
+            font-family: "Urbanist", sans-serif;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+        }
+
+        .export-btn {
+            border-radius: 8px;
+            padding: 0 18px;
+            background:
+                linear-gradient(135deg, rgba(222, 255, 154, 0.22), rgba(84, 168, 255, 0.1)),
+                rgba(255, 255, 255, 0.07);
+        }
+
+        .export-btn:hover,
+        .nav button:hover:not(:disabled) {
+            transform: translateY(-1px);
+            border-color: rgba(222, 255, 154, 0.58);
+        }
+
+        .deck-shell {
+            width: 1280px;
+            aspect-ratio: 16 / 9;
+            transform: scale(var(--deck-scale));
+            transform-origin: center center;
+            position: relative;
+            z-index: 5;
+        }
+
+        .slide-container {
+            position: absolute;
+            inset: 0;
+            width: 1280px;
+            height: 720px;
+            aspect-ratio: 16 / 9;
+            display: none;
+            overflow: hidden;
+            padding: 54px;
+            border-radius: 8px;
+            background:
+                radial-gradient(circle at 12% 14%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 27%),
+                radial-gradient(circle at 84% 18%, color-mix(in srgb, var(--accent2) 20%, transparent), transparent 31%),
+                linear-gradient(135deg, #111116 0%, #161821 48%, #0F0F13 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: var(--shadow);
+        }
+
+        .slide-container.active {
+            display: grid;
+        }
+
+        .slide-container::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.58;
+            pointer-events: none;
+        }
+
+        .slide-container::after {
+            content: "";
+            position: absolute;
+            left: 54px;
+            right: 54px;
+            bottom: 38px;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+            pointer-events: none;
+        }
+
+        .slide-inner {
+            position: relative;
+            z-index: 1;
+            min-height: 0;
+            height: 100%;
+            padding-bottom: 56px;
+            display: grid;
+            gap: 26px;
+        }
+
+        .kicker {
+            color: var(--accent);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.88rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 34%, transparent);
+        }
+
+        .title {
+            margin: 0;
+            color: var(--white);
+            font-family: "Urbanist", sans-serif;
+            font-size: 4.1rem;
+            line-height: 0.96;
+            font-weight: 900;
+        }
+
+        .title.medium {
+            font-size: 3.1rem;
+            line-height: 1;
+        }
+
+        .muted {
+            color: var(--silver);
+        }
+
+        .glass {
+            backdrop-filter: blur(12px);
+            background: var(--glass);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+        }
+
+        .cover {
+            grid-template-columns: 1.06fr 0.94fr;
+            align-items: center;
+        }
+
+        .cover-copy {
+            display: grid;
+            gap: 24px;
+            align-content: center;
+        }
+
+        .cover-bullets {
+            display: grid;
+            gap: 12px;
+            max-width: 650px;
+        }
+
+        .cover-bullet,
+        .summary-card,
+        .architecture-panel,
+        .metric-card,
+        .action-card {
+            backdrop-filter: blur(12px);
+            background: var(--glass);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .cover-bullet {
+            position: relative;
+            padding: 15px 18px 15px 44px;
+            color: #e8e8ec;
+            font-size: 1.02rem;
+            line-height: 1.42;
+            font-weight: 600;
+        }
+
+        .cover-bullet::before {
+            content: "";
+            position: absolute;
+            left: 18px;
+            top: 22px;
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 70%, transparent);
+        }
+
+        .orbital {
+            height: 500px;
+            position: relative;
+            display: grid;
+            place-items: center;
+        }
+
+        .orbital-ring {
+            position: absolute;
+            border: 1px solid rgba(255, 255, 255, 0.13);
+            border-radius: 50%;
+        }
+
+        .orbital-ring:nth-child(1) {
+            width: 390px;
+            height: 390px;
+        }
+
+        .orbital-ring:nth-child(2) {
+            width: 270px;
+            height: 270px;
+            border-color: rgba(222, 255, 154, 0.28);
+        }
+
+        .orbital-core {
+            width: 154px;
+            height: 154px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #111318;
+            font-family: "Urbanist", sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            box-shadow: 0 0 70px rgba(222, 255, 154, 0.26);
+        }
+
+        .node {
+            position: absolute;
+            width: 88px;
+            height: 88px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: var(--white);
+            font-family: "Urbanist", sans-serif;
+            font-weight: 900;
+        }
+
+        .node:nth-child(4) { top: 52px; left: 64px; }
+        .node:nth-child(5) { top: 90px; right: 44px; }
+        .node:nth-child(6) { bottom: 68px; left: 110px; }
+        .node:nth-child(7) { bottom: 92px; right: 78px; }
+
+        .summary {
+            grid-template-rows: auto 1fr;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .summary-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 350px;
+            min-width: 0;
+        }
+
+        .card-index {
+            width: 40px;
+            height: 40px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--accent) 15%, transparent);
+            color: var(--accent);
+            font-family: "Urbanist", sans-serif;
+            font-weight: 900;
+        }
+
+        .card-text {
+            margin-top: 30px;
+            color: #f3f3f6;
+            font-size: 1.03rem;
+            line-height: 1.42;
+            font-weight: 600;
+        }
+
+        .architecture {
+            grid-template-rows: auto 1fr;
+        }
+
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .architecture-panel {
+            padding: 28px;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 22px;
+            min-height: 350px;
+            min-width: 0;
+        }
+
+        .panel-label {
+            color: var(--accent);
+            font-family: "Urbanist", sans-serif;
+            font-size: 1rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .panel-body {
+            color: #f1f1f4;
+            font-size: 1.38rem;
+            line-height: 1.28;
+            font-weight: 700;
+        }
+
+        .panel-lines {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .panel-lines span {
+            height: 8px;
+            border-radius: 99px;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            opacity: 0.76;
+        }
+
+        .metrics {
+            grid-template-rows: auto 1fr;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            height: 100%;
+            align-items: stretch;
+        }
+
+        .metric-card {
+            padding: 24px;
+            display: grid;
+            align-content: space-between;
+            min-height: 350px;
+            min-width: 0;
+        }
+
+        .metric-label {
+            color: var(--silver);
+            font-size: 0.88rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            margin: 22px 0 14px;
+            color: var(--accent);
+            font-family: "Urbanist", sans-serif;
+            font-size: 3.45rem;
+            line-height: 0.9;
+            font-weight: 900;
+            text-shadow: 0 0 34px color-mix(in srgb, var(--accent) 28%, transparent);
+        }
+
+        .metric-note {
+            color: #eeeeF2;
+            font-size: 0.96rem;
+            line-height: 1.42;
+            font-weight: 600;
+        }
+
+        .metric-bar {
+            height: 8px;
+            margin-top: 22px;
+            overflow: hidden;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .metric-bar span {
+            display: block;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+        }
+
+        .conclusion {
+            grid-template-columns: 0.9fr 1.1fr;
+            align-items: center;
+        }
+
+        .conclusion-copy {
+            display: grid;
+            gap: 24px;
+        }
+
+        .actions {
+            display: grid;
+            gap: 16px;
+        }
+
+        .action-card {
+            display: grid;
+            grid-template-columns: 52px 1fr;
+            gap: 16px;
+            align-items: center;
+            padding: 18px;
+        }
+
+        .action-number {
+            width: 52px;
+            height: 52px;
+            display: grid;
+            place-items: center;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #111318;
+            font-family: "Urbanist", sans-serif;
+            font-weight: 900;
+        }
+
+        .action-text {
+            color: #f2f2f5;
+            font-size: 1.08rem;
+            line-height: 1.35;
+            font-weight: 700;
+        }
+
+        .signal-panel {
+            min-height: 430px;
+            padding: 28px;
+            display: grid;
+            align-content: end;
+            background:
+                linear-gradient(145deg, color-mix(in srgb, var(--accent) 17%, transparent), color-mix(in srgb, var(--accent2) 10%, transparent)),
+                rgba(255, 255, 255, 0.05);
+        }
+
+        .signal-line {
+            height: 180px;
+            border-left: 2px solid var(--accent);
+            border-bottom: 2px solid var(--accent2);
+            position: relative;
+        }
+
+        .signal-line::after {
+            content: "";
+            position: absolute;
+            left: 26px;
+            right: 10px;
+            bottom: 24px;
+            height: 120px;
+            background: linear-gradient(135deg, transparent 0 42%, var(--accent) 43% 45%, transparent 46% 58%, var(--accent2) 59% 61%, transparent 62%);
+        }
+
+        .slide-footer {
+            position: absolute;
+            left: 54px;
+            right: 54px;
+            bottom: 18px;
+            z-index: 2;
+            display: flex;
+            justify-content: space-between;
+            color: rgba(255, 255, 255, 0.52);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .nav {
+            position: fixed;
+            left: 50%;
+            bottom: 18px;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .nav button {
+            width: 44px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            font-size: 1.25rem;
+        }
+
+        .nav button:disabled {
+            opacity: 0.36;
+            cursor: not-allowed;
+        }
+
+        .counter {
+            min-width: 86px;
+            text-align: center;
+            color: var(--silver);
+            font-family: "Urbanist", sans-serif;
+            font-size: 0.82rem;
+            font-weight: 900;
+        }
+
+        @media (max-width: 760px) {
+            .topbar {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+            }
+
+            .brand {
+                display: none;
+            }
+
+            .export-btn {
+                height: 40px;
+                padding: 0 12px;
+                font-size: 0.78rem;
+            }
+
+            .nav {
+                bottom: 10px;
+            }
+        }
+
+        @media print {
+            html,
+            body {
+                width: 16in;
+                height: auto;
+                overflow: visible;
+            }
+
+            .deck-shell {
+                width: 16in;
+                height: auto;
+                transform: none !important;
+            }
+
+            .slide-container {
+                position: relative !important;
+                inset: auto !important;
+                display: grid !important;
+                border-radius: 0 !important;
+            }
+        }
+
+        @media print {
+            @page { size: 16in 9in; margin: 0; }
+            body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; background-color: #0F0F13 !important; }
+            .slide-container { width: 16in !important; height: 9in !important; page-break-after: always; page-break-inside: avoid; transform: none !important; margin: 0 !important; box-shadow: none !important; }
+            /* Hide navigation buttons during print */
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar no-print">
+        <div class="brand"><span class="brand-mark"></span>Cinematic Slide Engine</div>
+        <button class="export-btn" type="button" onclick="window.print()">Export to PDF</button>
+    </div>
+
+    <main class="deck-shell" id="deckShell"></main>
+
+    <nav class="nav no-print">
+        <button type="button" id="prevBtn" aria-label="Previous slide">&lt;</button>
+        <div class="counter" id="counter">1 / 5</div>
+        <button type="button" id="nextBtn" aria-label="Next slide">&gt;</button>
+    </nav>
+
+    <script>
+        const LAYOUTS = ["COVER", "EXECUTIVE_SUMMARY", "ARCHITECTURE_TWO_COLUMN", "DATA_METRICS", "CONCLUSION"];
+        const MIDDLE_LAYOUTS = ["EXECUTIVE_SUMMARY", "DATA_METRICS", "ARCHITECTURE_TWO_COLUMN", "EXECUTIVE_SUMMARY", "DATA_METRICS"];
+        const ACCENTS = [
+            ["#deff9a", "#54a8ff"],
+            ["#8df7ff", "#deff9a"],
+            ["#b7a8ff", "#54a8ff"],
+            ["#ffcf70", "#deff9a"],
+            ["#ff8fb7", "#8df7ff"],
+            ["#7cffc4", "#54a8ff"]
+        ];
+        let slides = [];
+        let current = 0;
+
+        function escapeHtml(value) {
+            const div = document.createElement("div");
+            div.textContent = value == null ? "" : String(value);
+            return div.innerHTML;
+        }
+
+        function asArray(value) {
+            if (Array.isArray(value)) return value.map(String).filter(Boolean);
+            if (value == null) return [];
+            return [String(value)];
+        }
+
+        function splitInsight(value, fallbackLabel) {
+            const raw = String(value || "").trim();
+            const parts = raw.split(":");
+            if (parts.length > 1) {
+                return {
+                    label: parts.shift().trim() || fallbackLabel,
+                    body: parts.join(":").trim() || raw
+                };
+            }
+            return { label: fallbackLabel, body: raw };
+        }
+
+        function splitMetric(value, index) {
+            const raw = String(value || "").trim();
+            const [left, notePart] = raw.split("|");
+            const hasDelimiter = String(left || "").includes(":");
+            if (!hasDelimiter) {
+                return {
+                    label: `Metric ${index + 1}`,
+                    value: `0${index + 1}`,
+                    note: raw || "Strategic performance signal"
+                };
+            }
+
+            const labelValue = splitInsight(left || raw, `Metric ${index + 1}`);
+            const valueWords = String(labelValue.body || "").trim().split(/\s+/).filter(Boolean);
+            const hasMetricToken = /(\d+([.,]\d+)?\s?%?|\d+x|low|medium|high|cao|thấp|trung bình)/i.test(labelValue.body || "");
+            if (!hasMetricToken && valueWords.length > 3) {
+                return {
+                    label: labelValue.label,
+                    value: `0${index + 1}`,
+                    note: labelValue.body
+                };
+            }
+
+            return {
+                label: labelValue.label,
+                value: labelValue.body || `${index + 1}x`,
+                note: (notePart || "Strategic performance signal").trim()
+            };
+        }
+
+        function fallbackSlides() {
+            return [
+                {
+                    layout: "COVER",
+                    kicker: "PITCH DECK",
+                    title: "Enterprise Knowledge Platform",
+                    content: ["Trusted answers from complex documents", "Executive workflows with measurable acceleration", "Premium narrative for strategic alignment"],
+                    visual_prompt: "Dark SaaS command center with luminous knowledge graph"
+                },
+                {
+                    layout: "EXECUTIVE_SUMMARY",
+                    kicker: "KEY SIGNALS",
+                    title: "Executive Summary",
+                    content: ["Knowledge work needs faster synthesis", "Retrieval improves confidence and traceability", "Automation compresses preparation cycles", "Pilot metrics should guide scale"],
+                    visual_prompt: "Four executive insight cards on dark glass dashboard"
+                },
+                {
+                    layout: "DATA_METRICS",
+                    kicker: "IMPACT",
+                    title: "Performance Signals",
+                    content: ["Speed: 3x | Faster executive preparation", "Reuse: 2x | More value from uploaded assets", "Quality: 95% | Better grounded confidence", "Cost: Low | Focused pilot investment"],
+                    visual_prompt: "Premium KPI wall with luminous metric tiles"
+                },
+                {
+                    layout: "ARCHITECTURE_TWO_COLUMN",
+                    kicker: "SYSTEM VIEW",
+                    title: "Operating Architecture",
+                    content: ["Current state: Fragmented context slows decisions", "Target state: Retrieval layer converts documents into trusted answers"],
+                    visual_prompt: "Two-column architecture with connected neon nodes"
+                },
+                {
+                    layout: "EXECUTIVE_SUMMARY",
+                    kicker: "PRIORITIES",
+                    title: "Execution Priorities",
+                    content: ["Choose repeated high-friction workflows", "Keep source traceability visible", "Measure quality before scale", "Automate after confidence is proven"],
+                    visual_prompt: "Executive priority matrix with glass panels"
+                },
+                {
+                    layout: "DATA_METRICS",
+                    kicker: "VALUE CASE",
+                    title: "Impact Metrics",
+                    content: ["Speed: 3x | Faster synthesis cycles", "Quality: 95% | Higher answer confidence", "Coverage: 5 flows | Broader workflow activation", "Risk: Low | Controlled rollout path"],
+                    visual_prompt: "Premium KPI wall with cyber-lime numbers"
+                },
+                {
+                    layout: "ARCHITECTURE_TWO_COLUMN",
+                    kicker: "ROLLOUT",
+                    title: "Implementation Model",
+                    content: ["Pilot scope: Validate one critical document workflow", "Scale path: Expand after measurable quality thresholds"],
+                    visual_prompt: "Dark roadmap architecture with staged rollout gates"
+                },
+                {
+                    layout: "EXECUTIVE_SUMMARY",
+                    kicker: "GOVERNANCE",
+                    title: "Control Model",
+                    content: ["Define source freshness expectations", "Review answer quality weekly", "Track adoption by workflow", "Maintain escalation paths for uncertainty"],
+                    visual_prompt: "Governance dashboard with premium audit trails"
+                },
+                {
+                    layout: "DATA_METRICS",
+                    kicker: "ROI",
+                    title: "Adoption Economics",
+                    content: ["Time saved: 40% | Less manual synthesis", "Users: 25+ | Pilot-ready group", "Accuracy: High | Grounded response generation", "Payback: Fast | Immediate workflow compression"],
+                    visual_prompt: "Financial value dashboard with elegant dark metrics"
+                },
+                {
+                    layout: "CONCLUSION",
+                    kicker: "NEXT MOVES",
+                    title: "Recommended Path Forward",
+                    content: ["Approve focused pilot scope", "Instrument quality and adoption metrics", "Scale after evidence-based validation"],
+                    visual_prompt: "Executive roadmap path with luminous decision point"
+                }
+            ];
+        }
+
+        function normalizeSlides(rawSlides) {
+            const source = Array.isArray(rawSlides) && rawSlides.length ? rawSlides : fallbackSlides();
+            const fallbacks = fallbackSlides();
+
+            return source.map((rawSlide, index) => {
+                const fallback = fallbacks[index % fallbacks.length];
+                const raw = rawSlide && typeof rawSlide === "object" ? rawSlide : fallback;
+                let layout = String(raw.layout || "").trim().toUpperCase();
+                if (!LAYOUTS.includes(layout)) {
+                    layout = index === 0 ? "COVER" : (index === source.length - 1 ? "CONCLUSION" : MIDDLE_LAYOUTS[(index - 1) % MIDDLE_LAYOUTS.length]);
+                }
+                if (index === 0) layout = "COVER";
+                if (index === source.length - 1 && source.length > 1) layout = "CONCLUSION";
+                return {
+                    layout,
+                    kicker: String(raw.kicker || fallback.kicker).trim(),
+                    title: String(raw.title || fallback.title).trim(),
+                    content: asArray(raw.content).length ? asArray(raw.content) : fallback.content,
+                    visual_prompt: String(raw.visual_prompt || fallback.visual_prompt).trim()
+                };
+            });
+        }
+
+        function sectionStyle(index) {
+            const pair = ACCENTS[index % ACCENTS.length];
+            return `style="--accent:${pair[0]};--accent2:${pair[1]}"`;
+        }
+
+        function slideHeader(slide, titleClass = "medium") {
+            return `
+                <div>
+                    <div class="kicker">${escapeHtml(slide.kicker || slide.layout)}</div>
+                    <h1 class="title ${titleClass}">${escapeHtml(slide.title)}</h1>
+                </div>
+            `;
+        }
+
+        function renderCover(slide, index) {
+            return `
+                <section class="slide-container cover active" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner cover">
+                        <div class="cover-copy">
+                            ${slideHeader(slide, "")}
+                            <div class="cover-bullets">
+                                ${slide.content.slice(0, 3).map(item => `<div class="cover-bullet">${escapeHtml(item)}</div>`).join("")}
+                            </div>
+                        </div>
+                        <div class="orbital glass">
+                            <div class="orbital-ring"></div>
+                            <div class="orbital-ring"></div>
+                            <div class="orbital-core">AI</div>
+                            <div class="node">DATA</div>
+                            <div class="node">RAG</div>
+                            <div class="node">OPS</div>
+                            <div class="node">ROI</div>
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderExecutiveSummary(slide, index) {
+            return `
+                <section class="slide-container summary" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner summary">
+                        ${slideHeader(slide)}
+                        <div class="summary-grid">
+                            ${slide.content.slice(0, 4).map((item, idx) => `
+                                <div class="summary-card">
+                                    <div class="card-index">0${idx + 1}</div>
+                                    <div class="card-text">${escapeHtml(item)}</div>
+                                </div>
+                            `).join("")}
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderArchitecture(slide, index) {
+            const left = splitInsight(slide.content[0], "Current State");
+            const right = splitInsight(slide.content[1], "Target State");
+            return `
+                <section class="slide-container architecture" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner architecture">
+                        ${slideHeader(slide)}
+                        <div class="architecture-grid">
+                            ${[left, right].map(panel => `
+                                <div class="architecture-panel">
+                                    <div class="panel-label">${escapeHtml(panel.label)}</div>
+                                    <div class="panel-body">${escapeHtml(panel.body)}</div>
+                                    <div class="panel-lines"><span></span><span></span><span></span></div>
+                                </div>
+                            `).join("")}
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderMetrics(slide, index) {
+            return `
+                <section class="slide-container metrics" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner metrics">
+                        ${slideHeader(slide)}
+                        <div class="metrics-grid">
+                            ${slide.content.slice(0, 4).map((item, idx) => {
+                                const metric = splitMetric(item, idx);
+                                const width = [82, 94, 74, 64][idx] || 76;
+                                return `
+                                    <div class="metric-card">
+                                        <div>
+                                            <div class="metric-label">${escapeHtml(metric.label)}</div>
+                                            <div class="metric-value">${escapeHtml(metric.value)}</div>
+                                            <div class="metric-note">${escapeHtml(metric.note)}</div>
+                                        </div>
+                                        <div class="metric-bar"><span style="width:${width}%"></span></div>
+                                    </div>
+                                `;
+                            }).join("")}
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderConclusion(slide, index) {
+            return `
+                <section class="slide-container conclusion" data-index="${index}" ${sectionStyle(index)}>
+                    <div class="slide-inner conclusion">
+                        <div class="conclusion-copy">
+                            ${slideHeader(slide)}
+                            <div class="actions">
+                                ${slide.content.slice(0, 3).map((item, idx) => `
+                                    <div class="action-card">
+                                        <div class="action-number">${idx + 1}</div>
+                                        <div class="action-text">${escapeHtml(item)}</div>
+                                    </div>
+                                `).join("")}
+                            </div>
+                        </div>
+                        <div class="signal-panel glass">
+                            <div class="signal-line"></div>
+                        </div>
+                    </div>
+                    ${renderFooter(slide, index)}
+                </section>
+            `;
+        }
+
+        function renderFooter(slide, index) {
+            return `
+                <div class="slide-footer">
+                    <span>${escapeHtml(slide.layout.replaceAll("_", " "))}</span>
+                    <span>${String(index + 1).padStart(2, "0")} / ${String(slides.length || LAYOUTS.length).padStart(2, "0")}</span>
+                </div>
+            `;
+        }
+
+        function renderDeck() {
+            const shell = document.getElementById("deckShell");
+            shell.innerHTML = slides.map((slide, index) => {
+                if (slide.layout === "COVER") return renderCover(slide, index);
+                if (slide.layout === "EXECUTIVE_SUMMARY") return renderExecutiveSummary(slide, index);
+                if (slide.layout === "ARCHITECTURE_TWO_COLUMN") return renderArchitecture(slide, index);
+                if (slide.layout === "DATA_METRICS") return renderMetrics(slide, index);
+                return renderConclusion(slide, index);
+            }).join("");
+            showSlide(0);
+            scaleDeck();
+        }
+
+        function showSlide(index) {
+            current = Math.max(0, Math.min(index, slides.length - 1));
+            document.querySelectorAll(".slide-container").forEach((slide, idx) => {
+                slide.classList.toggle("active", idx === current);
+            });
+            document.getElementById("counter").textContent = `${current + 1} / ${slides.length}`;
+            document.getElementById("prevBtn").disabled = current === 0;
+            document.getElementById("nextBtn").disabled = current === slides.length - 1;
+        }
+
+        function scaleDeck() {
+            const scale = Math.min((window.innerWidth - 48) / 1280, (window.innerHeight - 140) / 720, 1);
+            document.documentElement.style.setProperty("--deck-scale", String(Math.max(0.28, scale)));
+        }
+
+        function load() {
+            let parsed = [];
+            try {
+                parsed = JSON.parse(localStorage.getItem("slide_deck_data") || "[]");
+            } catch (error) {
+                parsed = [];
+            }
+            slides = normalizeSlides(parsed);
+            renderDeck();
+        }
+
+        document.getElementById("prevBtn").addEventListener("click", () => showSlide(current - 1));
+        document.getElementById("nextBtn").addEventListener("click", () => showSlide(current + 1));
+        window.addEventListener("resize", scaleDeck);
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowRight" || event.key === " ") {
+                event.preventDefault();
+                showSlide(current + 1);
+            }
+            if (event.key === "ArrowLeft") {
+                event.preventDefault();
+                showSlide(current - 1);
+            }
+        });
+        window.addEventListener("load", load);
+    </script>
+</body>
+</html>

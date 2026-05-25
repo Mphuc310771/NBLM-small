@@ -17,6 +17,12 @@ build/
 # ===== ChromaDB local storage =====
 chroma_db/
 
+# ===== Generated outputs =====
+scratch/
+app/static/outputs/
+app/core/cv_engine/build/
+app/core/cv_engine/*.so
+
 # ===== IDE =====
 .vscode/
 .idea/
